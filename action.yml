@@ -1,0 +1,11 @@
+name: 'qml format lint'
+description: 'Github Action that checks if code is correctly formatted using qmlformat'
+author: 'Darrel Griët'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
