@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import subprocess
 import glob
 import os
@@ -34,16 +35,45 @@ def is_formatted(file_path):
         print(f"Error: Could not process {file_path}")
         return False
 
+def format_file(file_path):
+    """
+    Applies formatting to a single file in-place.
+    """
+    try:
+        result = subprocess.run(
+            ["qmlformat-qt5", "--inplace", file_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+    except subprocess.CalledProcessError:
+        print(f"Error: Could not process {file_path}")
+
 def main():
     github_workspace = os.environ.get('GITHUB_WORKSPACE')
     if github_workspace:
         os.chdir(github_workspace)
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '-f',
+        '--fix',
+        action='store_true',
+        help='format the QML files instead of just checking')
+    args = parser.parse_args()
 
     files = get_qml_files()
 
     if not files:
         print("No QML files found.")
         return
+
+    if args.fix:
+        print("Formatting files")
+        for f in files:
+            # Execute twice once to apply formatting then to remove unneeded braces
+            format_file(f)
+            format_file(f)
 
     print(f"Checking {len(files)} files...")
     unformatted = [f for f in files if not is_formatted(f)]
