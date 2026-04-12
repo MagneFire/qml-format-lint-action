@@ -13,10 +13,9 @@ def get_qml_files(directory="."):
     pattern = os.path.join(directory, "**/*.qml")
     return glob.glob(pattern, recursive=True)
 
-def is_formatted(file_path):
+def get_formatted_code(file_path):
     """
-    Handles the formatting check for a single file.
-    Returns True if formatted, False otherwise.
+    Use qmlformat to get the formatted code for a given file.
     """
     try:
         result = subprocess.run(
@@ -26,28 +25,44 @@ def is_formatted(file_path):
             check=True
         )
 
-        with open(file_path, 'r', encoding='utf-8') as f:
-            original_content = f.read()
-
-        return result.stdout == original_content
-
+        return result.stdout
     except subprocess.CalledProcessError:
         print(f"Error: Could not process {file_path}")
         return False
 
-def format_file(file_path):
+def is_formatted(file_path):
     """
-    Applies formatting to a single file in-place.
+    Handles the formatting check for a single file.
+    Returns True if formatted, False otherwise.
     """
     try:
-        result = subprocess.run(
-            ["qmlformat-qt5", "--inplace", file_path],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = get_formatted_code(file_path)
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            original_content = f.read()
+
+        return result == original_content
     except subprocess.CalledProcessError:
         print(f"Error: Could not process {file_path}")
+        return False
+
+def format_file(file_path, max_retries=5):
+    """
+    Formats the file until two consecutive passes produce the same result.
+    """
+    with open(file_path, 'r', encoding='utf-8') as f:
+        current_content = f.read()
+
+    for i in range(max_retries):
+        new_content = get_formatted_code(file_path)
+        if new_content == current_content:
+            return True
+
+        current_content = new_content
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+    return False
 
 def main():
     github_workspace = os.environ.get('GITHUB_WORKSPACE')
@@ -71,8 +86,6 @@ def main():
     if args.fix:
         print("Formatting files")
         for f in files:
-            # Execute twice once to apply formatting then to remove unneeded braces
-            format_file(f)
             format_file(f)
 
     print(f"Checking {len(files)} files...")
